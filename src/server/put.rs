@@ -33,7 +33,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         .ok_or(anyhow!(""))?
         .starts_with(abs_root_dir.to_str().ok_or(anyhow!(""))?)
     {
-        remote_file_path = abs_root_dir.clone();
+        remote_file_path = abs_root_dir;
     }
     remote_file_path.push(req_payload.meta.file_name.clone());
 
@@ -44,7 +44,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         .open(remote_file_path)?;
 
     // store data
-    if req_payload.data.len() > 0 {
+    if !req_payload.data.is_empty() {
         // append data
         let offset = index_offset(req_payload.meta.curr_trans_trunk_index);
         remote_file.write_all_at(req_payload.data, offset)?;

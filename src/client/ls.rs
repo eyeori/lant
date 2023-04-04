@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::Result;
 use quinn::VarInt;
@@ -7,15 +7,15 @@ use crate::client::{send_and_receive, unwrap_message};
 use crate::message::ls::{LsRequestPayload, LsResponsePayload};
 use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageTypeEnum};
 
-pub async fn ls(connecting: quinn::Connecting, path_on_remote: &PathBuf) {
+pub async fn ls(connecting: quinn::Connecting, path_on_remote: &Path) {
     if let Err(e) = process_request(connecting, path_on_remote).await {
         println!("[ERR][Client] Process request error, error={e}");
     }
 }
 
-async fn process_request(connecting: quinn::Connecting, path_on_remote: &PathBuf) -> Result<()> {
+async fn process_request(connecting: quinn::Connecting, path_on_remote: &Path) -> Result<()> {
     // build request payload
-    let req_payload = LsRequestPayload::new(path_on_remote.clone());
+    let req_payload = LsRequestPayload::new(path_on_remote.to_path_buf());
 
     // do request
     let conn = connecting.await?;

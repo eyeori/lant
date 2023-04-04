@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::os::unix::fs::FileExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use chrono::Local;
@@ -66,8 +66,8 @@ async fn process_request(
 }
 
 fn process_response(
-    local_dir: &PathBuf,
-    file_name: &PathBuf,
+    local_dir: &Path,
+    file_name: &Path,
     payload: MessagePayloadRef,
 ) -> Result<Stage<FileChunkSize>> {
     // get payload
@@ -75,7 +75,7 @@ fn process_response(
     println!("<<<: {:?}", payload.meta);
 
     // build local file path
-    let mut local_file_path = local_dir.clone();
+    let mut local_file_path = local_dir.to_path_buf();
     local_file_path.push(file_name);
 
     // open local file
@@ -85,7 +85,7 @@ fn process_response(
         .open(local_file_path)?;
 
     // append data
-    if payload.data.len() > 0 {
+    if !payload.data.is_empty() {
         let offset = index_offset(payload.meta.curr_trans_trunk_index);
         local_file.write_all_at(payload.data, offset)?;
     }

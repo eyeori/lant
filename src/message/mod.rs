@@ -23,7 +23,7 @@ pub type MessageType = u16;
 pub type MessagePayloadSize = u64;
 pub type MessagePayloadRef<'a> = &'a [u8];
 
-const MESSAGE_MAGIC: MessageMagic = 'l' as u8 ^ 'a' as u8 ^ 'n' as u8 ^ 't' as u8;
+const MESSAGE_MAGIC: MessageMagic = b'l' ^ b'a' ^ b'n' ^ b't';
 const SIZE_OF_MESSAGE_MAGIC: usize = size_of::<MessageMagic>();
 const SIZE_OF_MESSAGE_TYPE: usize = size_of::<MessageType>();
 const SIZE_OF_MESSAGE_PAYLOAD_SIZE: usize = size_of::<MessagePayloadSize>();
@@ -73,7 +73,7 @@ pub fn deconstruct_message(msg: &RecvMessage) -> Result<(MessageType, Option<Mes
         payload = Some(payload_bytes as MessagePayloadRef);
     }
 
-    return Ok((msg_type, payload));
+    Ok((msg_type, payload))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

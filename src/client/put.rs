@@ -27,7 +27,7 @@ async fn process_request(
         "put file: {file_path:?}, to remote dir: {remote_dir:?}, time:{}",
         Local::now().timestamp_millis()
     );
-    let local_file = File::open(&file_path)?;
+    let local_file = File::open(file_path)?;
     let local_file_len = local_file.metadata()?.len();
     let local_file_chunk_size = FileChunkSize::from(local_file_len as usize);
 

@@ -33,10 +33,6 @@ impl DirItem {
     }
 
     pub fn is_file(&self) -> bool {
-        if self.1 == File {
-            true
-        } else {
-            false
-        }
+        self.1 == File
     }
 }

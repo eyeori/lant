@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
@@ -21,7 +21,7 @@ pub struct ServerContext {
 }
 
 impl ServerContext {
-    pub fn new(root_path: &PathBuf) -> Self {
+    pub fn new(root_path: &Path) -> Self {
         Self {
             root_path: root_path.to_path_buf(),
         }
@@ -57,7 +57,7 @@ pub(crate) async fn start(listen_on: &u16, root_path: &PathBuf) -> Result<()> {
 
     // start server
     let server_fut = server_start(conn_receiver.clone());
-    let quic_server_fut = quic_server::start(listen_on.clone(), conn_sender.clone());
+    let quic_server_fut = quic_server::start(*listen_on, conn_sender.clone());
     try_join!(server_fut, quic_server_fut)?;
 
     Ok(())

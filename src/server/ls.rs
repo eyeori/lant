@@ -25,7 +25,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         .ok_or(anyhow!(""))?
         .starts_with(abs_root_dir.to_str().ok_or(anyhow!(""))?)
     {
-        abs_ls_path = abs_root_dir.clone();
+        abs_ls_path = abs_root_dir;
     }
 
     // build response payload
@@ -37,16 +37,16 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
             let entry_type = DirItemType::from(entry.file_type()?);
             items.push(DirItem::new(entry_name, entry_type));
         }
-        LsResponsePayload::new(req_payload.path_on_remote.clone(), items)
+        LsResponsePayload::new(req_payload.path_on_remote, items)
     } else if abs_ls_path.is_file() {
         let abs_ls_path = abs_ls_path.as_path();
         let ls_item = abs_ls_path.file_name().unwrap().to_str().unwrap();
         let item = DirItem::new(ls_item.to_string(), DirItemType::File);
-        LsResponsePayload::new(req_payload.path_on_remote.clone(), vec![item])
+        LsResponsePayload::new(req_payload.path_on_remote, vec![item])
     } else {
         return Err(anyhow!(
             "ls path resource not exists, path={:?}",
-            req_payload.path_on_remote.clone()
+            req_payload.path_on_remote
         ));
     };
 

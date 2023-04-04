@@ -17,17 +17,14 @@ mod get;
 mod ls;
 mod put;
 
-pub(crate) fn init(connect_to: &String) -> Result<(Arc<quinn::Endpoint>, quinn::Connecting)> {
+pub(crate) fn init(connect_to: &str) -> Result<(Arc<quinn::Endpoint>, quinn::Connecting)> {
     // init
     let remote = connect_to.parse()?;
     let client_config = build_client_config()?;
     let endpoint = Arc::new(build_endpoint(client_config)?);
 
     // connect server
-    Ok((
-        endpoint.clone(),
-        build_connecting(endpoint.clone(), remote)?,
-    ))
+    Ok((endpoint.clone(), build_connecting(endpoint, remote)?))
 }
 
 async fn send_and_receive(
@@ -61,7 +58,7 @@ fn unwrap_message(
             }
             Ok(None)
         }
-        msg_type @ _ => {
+        msg_type => {
             println!("[ERR]{msg_type:?} not fit");
             Ok(None)
         }

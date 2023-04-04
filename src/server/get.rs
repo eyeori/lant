@@ -54,13 +54,13 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         } else {
             return Err(anyhow!(
                 "the file transfer is already completed, path={:?}",
-                req_payload.remote_file_path.clone()
+                req_payload.remote_file_path
             ));
         }
     } else {
         return Err(anyhow!(
             "file not exists, path={:?}",
-            req_payload.remote_file_path.clone()
+            req_payload.remote_file_path
         ));
     };
 

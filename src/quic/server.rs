@@ -37,7 +37,7 @@ fn quic_start_listen(port: u16) -> Result<quinn::Endpoint> {
         .reuse_port(true)?
         .bind(addr)?;
     let endpoint = quinn::Endpoint::new(Default::default(), server_config, socket, TokioRuntime)?;
-    println!("listen on {}", addr.to_string());
+    println!("listen on {}", addr);
     Ok(endpoint)
 }
 
