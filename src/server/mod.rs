@@ -120,7 +120,7 @@ async fn handle_requests(conn: quinn::Connection) {
     }
 }
 
-async fn handle_request(mut ss: quinn::SendStream, rs: quinn::RecvStream) {
+async fn handle_request(mut ss: quinn::SendStream, mut rs: quinn::RecvStream) {
     // receive request data
     if let Ok(request) = rs.read_to_end(usize::MAX).await {
         // do business and build response

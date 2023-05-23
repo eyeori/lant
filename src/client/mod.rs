@@ -36,7 +36,7 @@ async fn send_and_receive(
     let mut msg = build_message(msg_type, payload);
 
     // connect & send request
-    let (mut ss, rs) = conn.open_bi().await?;
+    let (mut ss, mut rs) = conn.open_bi().await?;
     ss.write_all_chunks(msg.as_mut_slice()).await?;
     ss.finish().await?;
 
