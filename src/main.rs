@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use std::process::exit;
 
 use anyhow::Result;
 use structopt::StructOpt;
@@ -90,29 +89,16 @@ enum ClientSubCommand {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let cmd = Command::from_args();
 
-    let code = match run(&cmd) {
-        Ok(()) => 0,
-        Err(e) => {
-            println!("[ERR]{e}");
-            1
-        }
-    };
-
-    exit(code);
-}
-
-#[tokio::main]
-#[allow(clippy::field_reassign_with_default)]
-async fn run(cmd: &Command) -> Result<()> {
-    match cmd {
+    match &cmd {
         Command::Server {
             listen_on,
             root_path,
         } => {
-            server::start(listen_on, root_path).await?;
+            server::start(*listen_on, root_path).await?;
         }
         Command::Client {
             connect_to,
