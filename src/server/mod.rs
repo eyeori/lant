@@ -1,11 +1,14 @@
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use std::sync::mpsc::{channel, Receiver, TryRecvError};
 use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use crossbeam_channel::Receiver;
 use once_cell::sync::OnceCell;
 use path_absolutize::Absolutize;
-use tokio::{time, try_join};
+use tokio::try_join;
 
 use crate::message::{
     build_error_message, deconstruct_message, MessageTypeEnum, RecvMessage, SendMessage,
@@ -33,7 +36,7 @@ static SERVER_CONTEXT: OnceCell<ServerContext> = OnceCell::new();
 pub fn get_server_abs_root_dir() -> Result<PathBuf> {
     let server_context = SERVER_CONTEXT
         .get()
-        .ok_or(anyhow!("server context not inited"))?;
+        .ok_or(anyhow!("server context not initialized"))?;
     let root_dir = &server_context.root_path;
     Ok(root_dir.absolutize()?.to_path_buf())
 }
@@ -51,9 +54,9 @@ pub(crate) async fn start(listen_on: u16, root_path: &Path) -> Result<()> {
     let _ = SERVER_CONTEXT.set(ServerContext::new(root_path));
 
     // conn channel
-    let (conn_sender, conn_receiver) = crossbeam_channel::unbounded();
+    let (conn_sender, conn_receiver) = channel();
     let conn_sender = Arc::new(conn_sender);
-    let conn_receiver = Arc::new(conn_receiver);
+    let conn_receiver = Rc::new(conn_receiver);
 
     // start server
     let server_fut = server_start(conn_receiver.clone());
@@ -63,29 +66,31 @@ pub(crate) async fn start(listen_on: u16, root_path: &Path) -> Result<()> {
     Ok(())
 }
 
-async fn server_start(conn_receiver: Arc<Receiver<quinn::Connection>>) -> Result<()> {
-    tokio::spawn(handle_connection(conn_receiver));
+async fn server_start(conn_receiver: Rc<Receiver<quinn::Connection>>) -> Result<()> {
+    handle_connection(conn_receiver);
     Ok(())
 }
 
-async fn handle_connection(receiver: Arc<Receiver<quinn::Connection>>) {
+fn handle_connection(receiver: Rc<Receiver<quinn::Connection>>) {
     loop {
-        if receiver.len() > 0 {
-            match receiver.recv() {
-                Ok(conn) => {
-                    println!(
-                        "[Server] Receive a connection, from {:?}",
-                        conn.remote_address()
-                    );
-                    tokio::spawn(handle_requests(conn));
+        match receiver.try_recv() {
+            Ok(conn) => {
+                println!(
+                    "[Server] Receive a connection, from {:?}",
+                    conn.remote_address()
+                );
+                tokio::spawn(handle_requests(conn));
+            }
+            Err(e) => match e {
+                TryRecvError::Empty => {
+                    sleep(Duration::from_millis(100));
+                    continue;
                 }
-                Err(e) => {
+                TryRecvError::Disconnected => {
                     println!("[ERR][Server] Receive connection error, error={e}");
                     break;
                 }
-            }
-        } else {
-            time::sleep(time::Duration::from_millis(100)).await;
+            },
         }
     }
 }

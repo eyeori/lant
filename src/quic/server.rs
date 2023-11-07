@@ -1,10 +1,10 @@
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
 use anyhow::Result;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use crossbeam_channel::Sender;
 use net2::unix::UnixUdpBuilderExt;
 use quinn::TokioRuntime;
 
