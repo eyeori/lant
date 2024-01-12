@@ -2,7 +2,7 @@ use std::fs::File;
 use std::os::unix::fs::FileExt;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::Local;
 use quinn::VarInt;
 
@@ -10,6 +10,7 @@ use crate::client::{send_and_receive, unwrap_message, Stage};
 use crate::message::get::{GetRequestPayload, GetResponsePayloadRef};
 use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
 use crate::utils::file::{get_file_chunk_size, index_offset, FileChunkSize};
+use crate::utils::res::ExtResult;
 
 pub async fn get(connecting: quinn::Connecting, file_path: &Path, local_dir: &Path) {
     if let Err(e) = process_request(connecting, file_path, local_dir).await {
@@ -26,9 +27,7 @@ async fn process_request(
         "get file: {file_path:?}, to local dir: {local_dir:?}, time:{}",
         Local::now().timestamp_millis()
     );
-    let file_name = file_path
-        .file_name()
-        .ok_or(anyhow!("got file name error"))?;
+    let file_name = file_path.file_name().or_err("got file name error")?;
     let file_name = PathBuf::from(file_name);
     let mut local_file_path = local_dir.to_path_buf();
     local_file_path.push(&file_name);

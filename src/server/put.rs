@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::os::unix::fs::FileExt;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 
 use crate::message::put::{PutRequestPayloadRef, PutResponsePayload};
 use crate::message::{
@@ -9,6 +9,7 @@ use crate::message::{
 };
 use crate::server::get_server_abs_root_dir;
 use crate::utils::file::{index_offset, FileChunkSize};
+use crate::utils::res::ExtResult;
 
 pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
     // deserialize request payload
@@ -30,8 +31,8 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     remote_file_path = remote_file_path.canonicalize()?;
     if !remote_file_path
         .to_str()
-        .ok_or(anyhow!(""))?
-        .starts_with(abs_root_dir.to_str().ok_or(anyhow!(""))?)
+        .ok()?
+        .starts_with(abs_root_dir.to_str().ok()?)
     {
         remote_file_path = abs_root_dir;
     }

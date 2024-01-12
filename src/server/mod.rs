@@ -14,6 +14,7 @@ use crate::message::{
     build_error_message, deconstruct_message, MessageType, RecvMessage, SendMessage,
 };
 use crate::quic::quic_server;
+use crate::utils::res::ExtResult;
 
 mod get;
 mod ls;
@@ -36,7 +37,7 @@ static SERVER_CONTEXT: OnceCell<ServerContext> = OnceCell::new();
 pub fn get_server_abs_root_dir() -> Result<PathBuf> {
     let server_context = SERVER_CONTEXT
         .get()
-        .ok_or(anyhow!("server context not initialized"))?;
+        .or_err("server context not initialized")?;
     let root_dir = &server_context.root_path;
     Ok(root_dir.absolutize()?.to_path_buf())
 }
@@ -141,7 +142,7 @@ async fn handle_request(mut ss: quinn::SendStream, mut rs: quinn::RecvStream) {
 
 async fn handle_business(msg: RecvMessage) -> Result<SendMessage> {
     let (msg_type, msg_payload) = deconstruct_message(&msg)?;
-    let req_payload = msg_payload.ok_or(anyhow!("request body is null"))?;
+    let req_payload = msg_payload.or_err("request body is null")?;
     match msg_type {
         MessageType::LsRequest => ls::request(req_payload).await,
         MessageType::PutRequest => put::request(req_payload).await,
