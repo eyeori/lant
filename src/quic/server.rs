@@ -13,7 +13,7 @@ use crate::quic::cert::{LTS_CERT, LTS_KEY};
 pub async fn start(listen_port: u16, conn_sender: Arc<Sender<quinn::Connection>>) -> Result<()> {
     tokio::spawn(quic_handle_accept(
         quic_start_listen(listen_port)?,
-        conn_sender.clone(),
+        conn_sender,
     ))
     .await?;
     Ok(())

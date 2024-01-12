@@ -31,8 +31,8 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     remote_file_path = remote_file_path.canonicalize()?;
     if !remote_file_path
         .to_str()
-        .ok()?
-        .starts_with(abs_root_dir.to_str().ok()?)
+        .get()?
+        .starts_with(abs_root_dir.to_str().get()?)
     {
         remote_file_path = abs_root_dir;
     }

@@ -23,8 +23,8 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     abs_ls_path = abs_ls_path.canonicalize()?;
     if !abs_ls_path
         .to_str()
-        .ok()?
-        .starts_with(abs_root_dir.to_str().ok()?)
+        .get()?
+        .starts_with(abs_root_dir.to_str().get()?)
     {
         abs_ls_path = abs_root_dir;
     }
@@ -34,7 +34,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         let mut items = Vec::new();
         for entry in fs::read_dir(abs_ls_path)? {
             let entry = entry?;
-            let entry_name = entry.file_name().into_string().map_err(|_| anyhow!(""))?;
+            let entry_name = entry.file_name().into_string().get()?;
             let entry_type = DirItemType::from(entry.file_type()?);
             items.push(DirItem::new(entry_name, entry_type));
         }

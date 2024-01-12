@@ -27,7 +27,7 @@ async fn process_request(
         "get file: {file_path:?}, to local dir: {local_dir:?}, time:{}",
         Local::now().timestamp_millis()
     );
-    let file_name = file_path.file_name().or_err("got file name error")?;
+    let file_name = file_path.file_name().get_or("got file name error")?;
     let file_name = PathBuf::from(file_name);
     let mut local_file_path = local_dir.to_path_buf();
     local_file_path.push(&file_name);

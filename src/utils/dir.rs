@@ -24,8 +24,8 @@ impl From<FileType> for DirItemType {
 pub struct DirItem(String, DirItemType);
 
 impl DirItem {
-    pub fn new(name: String, item_type: DirItemType) -> Self {
-        Self(name, item_type)
+    pub fn new(name: impl Into<String>, item_type: DirItemType) -> Self {
+        Self(name.into(), item_type)
     }
 
     pub fn name(&self) -> String {

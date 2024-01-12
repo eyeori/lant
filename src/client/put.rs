@@ -32,7 +32,7 @@ async fn process_request(
     let local_file_len = local_file.metadata()?.len();
     let local_file_chunk_size = FileChunkSize::from(local_file_len as usize);
 
-    let file_name = file_path.file_name().or_err("got file name error")?;
+    let file_name = file_path.file_name().get_or("got file name error")?;
     let mut req_meta = PutRequestMeta::new(file_name, remote_dir);
     let mut req_payload = PutRequestPayload::new(req_meta.clone(), None);
 
