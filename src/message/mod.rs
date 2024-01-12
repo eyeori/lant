@@ -4,9 +4,6 @@ use std::vec;
 use anyhow::{anyhow, Result};
 use bytes::Bytes;
 
-use crate::message::MessageTypeEnum::{
-    Error, GetRequest, GetResponse, Invalid, LsRequest, LsResponse, PutRequest, PutResponse,
-};
 use crate::utils::bytes_as_t;
 use crate::utils::json::{FromJson, ToJsonString};
 
@@ -19,9 +16,42 @@ pub type RecvMessage = Bytes;
 pub type MessagePayload = Vec<Bytes>;
 
 pub type MessageMagic = u8;
-pub type MessageType = u16;
 pub type MessagePayloadSize = u64;
 pub type MessagePayloadRef<'a> = &'a [u8];
+
+#[repr(u16)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MessageType {
+    LsRequest = 0b00000001,
+    LsResponse = 0b00000010,
+    PutRequest = 0b00000100,
+    PutResponse = 0b00001000,
+    GetRequest = 0b00010000,
+    GetResponse = 0b00100000,
+    Error = 0b11110000,
+    Invalid = 0b11111111,
+}
+
+impl MessageType {
+    pub fn as_u16(self) -> u16 {
+        self as u16
+    }
+}
+
+impl From<&[u8]> for MessageType {
+    fn from(bytes: &[u8]) -> Self {
+        match bytes_as_t::<u16>(bytes) {
+            code if code == MessageType::LsRequest.as_u16() => MessageType::LsRequest,
+            code if code == MessageType::LsResponse.as_u16() => MessageType::LsResponse,
+            code if code == MessageType::PutRequest.as_u16() => MessageType::PutRequest,
+            code if code == MessageType::PutResponse.as_u16() => MessageType::PutResponse,
+            code if code == MessageType::GetRequest.as_u16() => MessageType::GetRequest,
+            code if code == MessageType::GetResponse.as_u16() => MessageType::GetResponse,
+            code if code == MessageType::Error.as_u16() => MessageType::Error,
+            _ => MessageType::Invalid,
+        }
+    }
+}
 
 const MESSAGE_MAGIC: MessageMagic = b'l' ^ b'a' ^ b'n' ^ b't';
 const SIZE_OF_MESSAGE_MAGIC: usize = size_of::<MessageMagic>();
@@ -55,8 +85,8 @@ pub fn deconstruct_message(msg: &RecvMessage) -> Result<(MessageType, Option<Mes
 
     // type valid
     let type_bytes = &msg[OFFSET_OF_MESSAGE_TYPE..OFFSET_OF_MESSAGE_PAYLOAD_SIZE];
-    let msg_type = bytes_as_t::<MessageType>(type_bytes);
-    if MessageTypeEnum::from(msg_type) == Invalid {
+    let msg_type = MessageType::from(type_bytes);
+    if msg_type == MessageType::Invalid {
         return Err(anyhow!("message type invalid"));
     }
 
@@ -76,51 +106,9 @@ pub fn deconstruct_message(msg: &RecvMessage) -> Result<(MessageType, Option<Mes
     Ok((msg_type, payload))
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum MessageTypeEnum {
-    Invalid,
-    LsRequest,
-    LsResponse,
-    PutRequest,
-    PutResponse,
-    GetRequest,
-    GetResponse,
-    Error,
-}
-
-impl From<MessageType> for MessageTypeEnum {
-    fn from(msg_type: MessageType) -> Self {
-        match msg_type {
-            0b00000001 => LsRequest,
-            0b00000010 => LsResponse,
-            0b00000100 => PutRequest,
-            0b00001000 => PutResponse,
-            0b00010000 => GetRequest,
-            0b00100000 => GetResponse,
-            0b11110000 => Error,
-            _ => Invalid,
-        }
-    }
-}
-
-impl From<MessageTypeEnum> for MessageType {
-    fn from(msg_type: MessageTypeEnum) -> Self {
-        match msg_type {
-            LsRequest => 0b00000001,
-            LsResponse => 0b00000010,
-            PutRequest => 0b00000100,
-            PutResponse => 0b00001000,
-            GetRequest => 0b00010000,
-            GetResponse => 0b00100000,
-            Error => 0b11110000,
-            Invalid => 0b11111111,
-        }
-    }
-}
-
-pub fn build_message(msg_type: MessageTypeEnum, payload: impl ToMessagePayload) -> SendMessage {
+pub fn build_message(msg_type: MessageType, payload: impl ToMessagePayload) -> SendMessage {
     let magic = Bytes::copy_from_slice(&MESSAGE_MAGIC.to_le_bytes());
-    let msg_type = Bytes::copy_from_slice(&MessageType::from(msg_type).to_le_bytes());
+    let msg_type = Bytes::copy_from_slice(&msg_type.as_u16().to_le_bytes());
     let mut total_payload_size = 0;
     let mut payload = payload.to_payload();
     for chunked in &payload {
@@ -134,7 +122,7 @@ pub fn build_message(msg_type: MessageTypeEnum, payload: impl ToMessagePayload) 
 }
 
 pub fn build_error_message(error_msg: String) -> SendMessage {
-    build_message(Error, Bytes::from(error_msg))
+    build_message(MessageType::Error, Bytes::from(error_msg))
 }
 
 pub trait FromMessagePayloadRef<'a>

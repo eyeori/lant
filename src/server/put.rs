@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 
 use crate::message::put::{PutRequestPayloadRef, PutResponsePayload};
 use crate::message::{
-    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageTypeEnum, SendMessage,
+    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
 };
 use crate::server::get_server_abs_root_dir;
 use crate::utils::file::{index_offset, FileChunkSize};
@@ -19,7 +19,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
 
     if req_payload.meta.is_done {
         return Ok(build_message(
-            MessageTypeEnum::PutResponse,
+            MessageType::PutResponse,
             PutResponsePayload::finish(),
         ));
     }
@@ -55,5 +55,5 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     let res_payload = PutResponsePayload::new(remote_file_chunk_size);
 
     // build response message
-    Ok(build_message(MessageTypeEnum::PutResponse, res_payload))
+    Ok(build_message(MessageType::PutResponse, res_payload))
 }

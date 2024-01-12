@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 
 use crate::message::ls::{LsRequestPayload, LsResponsePayload};
 use crate::message::{
-    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageTypeEnum, SendMessage,
+    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
 };
 use crate::server::get_server_abs_root_dir;
 use crate::utils::dir::{DirItem, DirItemType};
@@ -51,5 +51,5 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     };
 
     // build payload message
-    Ok(build_message(MessageTypeEnum::LsResponse, res_payload))
+    Ok(build_message(MessageType::LsResponse, res_payload))
 }

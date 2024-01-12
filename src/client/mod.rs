@@ -8,7 +8,7 @@ pub use ls::ls;
 pub use put::put;
 
 use crate::message::{
-    build_message, deconstruct_message, MessagePayloadRef, MessageTypeEnum, RecvMessage,
+    build_message, deconstruct_message, MessagePayloadRef, MessageType, RecvMessage,
     ToMessagePayload,
 };
 use crate::quic::quic_client::{build_client_config, build_connecting, build_endpoint};
@@ -29,7 +29,7 @@ pub(crate) fn init(connect_to: &str) -> Result<(Arc<quinn::Endpoint>, quinn::Con
 
 async fn send_and_receive(
     conn: &quinn::Connection,
-    msg_type: MessageTypeEnum,
+    msg_type: MessageType,
     payload: impl ToMessagePayload,
 ) -> Result<RecvMessage> {
     // build request message
@@ -47,12 +47,12 @@ async fn send_and_receive(
 
 fn unwrap_message(
     msg: &RecvMessage,
-    msg_type_expect: MessageTypeEnum,
+    msg_type_expect: MessageType,
 ) -> Result<Option<MessagePayloadRef>> {
     let (msg_type, msg_payload) = deconstruct_message(msg)?;
-    match MessageTypeEnum::from(msg_type) {
+    match msg_type {
         msg_type if msg_type == msg_type_expect => Ok(msg_payload),
-        MessageTypeEnum::Error => {
+        MessageType::Error => {
             if let Some(payload) = msg_payload {
                 println!("[ERR]{}", std::str::from_utf8(payload)?);
             }

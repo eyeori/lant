@@ -9,7 +9,7 @@ use quinn::VarInt;
 
 use crate::client::{send_and_receive, unwrap_message, Stage};
 use crate::message::put::{PutRequestMeta, PutRequestPayload, PutResponsePayload};
-use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageTypeEnum};
+use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
 use crate::utils::file::{buffer_size, index_offset, FileChunkSize};
 
 pub async fn put(connecting: quinn::Connecting, file_path: &PathBuf, remote_dir: &PathBuf) {
@@ -42,10 +42,10 @@ async fn process_request(
     loop {
         // do request
         println!(">>>: {:?}", req_payload.meta);
-        let response = send_and_receive(&conn, MessageTypeEnum::PutRequest, req_payload).await?;
+        let response = send_and_receive(&conn, MessageType::PutRequest, req_payload).await?;
 
         // process response
-        if let Some(res_payload) = unwrap_message(&response, MessageTypeEnum::PutResponse)? {
+        if let Some(res_payload) = unwrap_message(&response, MessageType::PutResponse)? {
             let stage = process_response(
                 &local_file,
                 local_file_len as usize,

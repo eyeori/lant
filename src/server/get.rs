@@ -6,7 +6,7 @@ use bytes::Bytes;
 
 use crate::message::get::{GetRequestPayload, GetResponseMeta, GetResponsePayload};
 use crate::message::{
-    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageTypeEnum, SendMessage,
+    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
 };
 use crate::server::get_server_abs_root_dir;
 use crate::utils::file::{buffer_size, index_offset, FileChunkSize};
@@ -65,5 +65,5 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     };
 
     // build response message
-    Ok(build_message(MessageTypeEnum::GetResponse, res_payload))
+    Ok(build_message(MessageType::GetResponse, res_payload))
 }

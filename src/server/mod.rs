@@ -11,7 +11,7 @@ use path_absolutize::Absolutize;
 use tokio::try_join;
 
 use crate::message::{
-    build_error_message, deconstruct_message, MessageTypeEnum, RecvMessage, SendMessage,
+    build_error_message, deconstruct_message, MessageType, RecvMessage, SendMessage,
 };
 use crate::quic::quic_server;
 
@@ -142,10 +142,10 @@ async fn handle_request(mut ss: quinn::SendStream, mut rs: quinn::RecvStream) {
 async fn handle_business(msg: RecvMessage) -> Result<SendMessage> {
     let (msg_type, msg_payload) = deconstruct_message(&msg)?;
     let req_payload = msg_payload.ok_or(anyhow!("request body is null"))?;
-    match MessageTypeEnum::from(msg_type) {
-        MessageTypeEnum::LsRequest => ls::request(req_payload).await,
-        MessageTypeEnum::PutRequest => put::request(req_payload).await,
-        MessageTypeEnum::GetRequest => get::request(req_payload).await,
+    match msg_type {
+        MessageType::LsRequest => ls::request(req_payload).await,
+        MessageType::PutRequest => put::request(req_payload).await,
+        MessageType::GetRequest => get::request(req_payload).await,
         msg_type => Err(anyhow!("not supported message type, type={msg_type:?}")),
     }
 }

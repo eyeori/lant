@@ -8,7 +8,7 @@ use quinn::VarInt;
 
 use crate::client::{send_and_receive, unwrap_message, Stage};
 use crate::message::get::{GetRequestPayload, GetResponsePayloadRef};
-use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageTypeEnum};
+use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
 use crate::utils::file::{get_file_chunk_size, index_offset, FileChunkSize};
 
 pub async fn get(connecting: quinn::Connecting, file_path: &PathBuf, local_dir: &PathBuf) {
@@ -40,10 +40,10 @@ async fn process_request(
     loop {
         // do request
         println!(">>>: {req_payload:?}");
-        let response = send_and_receive(&conn, MessageTypeEnum::GetRequest, req_payload).await?;
+        let response = send_and_receive(&conn, MessageType::GetRequest, req_payload).await?;
 
         // process response
-        if let Some(res_payload) = unwrap_message(&response, MessageTypeEnum::GetResponse)? {
+        if let Some(res_payload) = unwrap_message(&response, MessageType::GetResponse)? {
             let stage = process_response(local_dir, &file_name, res_payload)?;
             match stage {
                 Stage::Processing(local_file_chunk_size) => {
