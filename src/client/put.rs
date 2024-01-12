@@ -1,6 +1,6 @@
 use std::fs::File;
 use std::os::unix::fs::FileExt;
-use std::path::PathBuf;
+use std::path::Path;
 
 use anyhow::{anyhow, Result};
 use bytes::Bytes;
@@ -12,7 +12,7 @@ use crate::message::put::{PutRequestMeta, PutRequestPayload, PutResponsePayload}
 use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
 use crate::utils::file::{buffer_size, index_offset, FileChunkSize};
 
-pub async fn put(connecting: quinn::Connecting, file_path: &PathBuf, remote_dir: &PathBuf) {
+pub async fn put(connecting: quinn::Connecting, file_path: &Path, remote_dir: &Path) {
     if let Err(e) = process_request(connecting, file_path, remote_dir).await {
         println!("[ERR][Client] Process request error, error={e}");
     }
@@ -20,8 +20,8 @@ pub async fn put(connecting: quinn::Connecting, file_path: &PathBuf, remote_dir:
 
 async fn process_request(
     mut connecting: quinn::Connecting,
-    file_path: &PathBuf,
-    remote_dir: &PathBuf,
+    file_path: &Path,
+    remote_dir: &Path,
 ) -> Result<()> {
     println!(
         "put file: {file_path:?}, to remote dir: {remote_dir:?}, time:{}",
@@ -32,10 +32,9 @@ async fn process_request(
     let local_file_chunk_size = FileChunkSize::from(local_file_len as usize);
 
     let file_name = file_path
-        .as_path()
         .file_name()
         .ok_or(anyhow!("got file name error"))?;
-    let mut req_meta = PutRequestMeta::new(PathBuf::from(file_name), remote_dir.clone());
+    let mut req_meta = PutRequestMeta::new(file_name, remote_dir);
     let mut req_payload = PutRequestPayload::new(req_meta.clone(), None);
 
     let conn = (&mut connecting).await?;

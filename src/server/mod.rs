@@ -59,8 +59,8 @@ pub(crate) async fn start(listen_on: u16, root_path: &Path) -> Result<()> {
     let conn_receiver = Rc::new(conn_receiver);
 
     // start server
-    let server_fut = server_start(conn_receiver.clone());
-    let quic_server_fut = quic_server::start(listen_on, conn_sender.clone());
+    let server_fut = server_start(conn_receiver);
+    let quic_server_fut = quic_server::start(listen_on, conn_sender);
     try_join!(server_fut, quic_server_fut)?;
 
     Ok(())

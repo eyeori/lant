@@ -19,9 +19,9 @@ pub struct GetRequestPayload {
 }
 
 impl GetRequestPayload {
-    pub fn new(remote_file_path: PathBuf, local_file_chunk_size: FileChunkSize) -> Self {
+    pub fn new(remote_file_path: impl Into<PathBuf>, local_file_chunk_size: FileChunkSize) -> Self {
         Self {
-            remote_file_path,
+            remote_file_path: remote_file_path.into(),
             local_file_chunk_size,
         }
     }

@@ -21,10 +21,10 @@ pub struct PutRequestMeta {
 }
 
 impl PutRequestMeta {
-    pub fn new(file_name: PathBuf, remote_dir: PathBuf) -> Self {
+    pub fn new(file_name: impl Into<PathBuf>, remote_dir: impl Into<PathBuf>) -> Self {
         Self {
-            file_name,
-            remote_dir,
+            file_name: file_name.into(),
+            remote_dir: remote_dir.into(),
             curr_trans_trunk_index: 0,
             is_done: false,
         }

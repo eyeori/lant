@@ -11,8 +11,10 @@ pub struct LsRequestPayload {
 }
 
 impl LsRequestPayload {
-    pub fn new(path_on_remote: PathBuf) -> Self {
-        Self { path_on_remote }
+    pub fn new(path_on_remote: impl Into<PathBuf>) -> Self {
+        Self {
+            path_on_remote: path_on_remote.into(),
+        }
     }
 }
 
@@ -25,8 +27,11 @@ pub struct LsResponsePayload {
 }
 
 impl LsResponsePayload {
-    pub fn new(dir: PathBuf, items: Vec<DirItem>) -> Self {
-        Self { dir, items }
+    pub fn new(dir: impl Into<PathBuf>, items: Vec<DirItem>) -> Self {
+        Self {
+            dir: dir.into(),
+            items,
+        }
     }
 }
 

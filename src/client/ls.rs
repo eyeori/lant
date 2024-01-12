@@ -15,7 +15,7 @@ pub async fn ls(connecting: quinn::Connecting, path_on_remote: &Path) {
 
 async fn process_request(connecting: quinn::Connecting, path_on_remote: &Path) -> Result<()> {
     // build request payload
-    let req_payload = LsRequestPayload::new(path_on_remote.to_path_buf());
+    let req_payload = LsRequestPayload::new(path_on_remote);
 
     // do request
     let conn = connecting.await?;

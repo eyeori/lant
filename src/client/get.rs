@@ -11,7 +11,7 @@ use crate::message::get::{GetRequestPayload, GetResponsePayloadRef};
 use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
 use crate::utils::file::{get_file_chunk_size, index_offset, FileChunkSize};
 
-pub async fn get(connecting: quinn::Connecting, file_path: &PathBuf, local_dir: &PathBuf) {
+pub async fn get(connecting: quinn::Connecting, file_path: &Path, local_dir: &Path) {
     if let Err(e) = process_request(connecting, file_path, local_dir).await {
         println!("[ERR][Client] Process request error, error={e}");
     }
@@ -19,22 +19,21 @@ pub async fn get(connecting: quinn::Connecting, file_path: &PathBuf, local_dir: 
 
 async fn process_request(
     mut connecting: quinn::Connecting,
-    file_path: &PathBuf,
-    local_dir: &PathBuf,
+    file_path: &Path,
+    local_dir: &Path,
 ) -> Result<()> {
     println!(
         "get file: {file_path:?}, to local dir: {local_dir:?}, time:{}",
         Local::now().timestamp_millis()
     );
     let file_name = file_path
-        .as_path()
         .file_name()
         .ok_or(anyhow!("got file name error"))?;
     let file_name = PathBuf::from(file_name);
-    let mut local_file_path = local_dir.clone();
+    let mut local_file_path = local_dir.to_path_buf();
     local_file_path.push(&file_name);
     let local_file_chunk_size = get_file_chunk_size(&local_file_path);
-    let mut req_payload = GetRequestPayload::new(file_path.clone(), local_file_chunk_size);
+    let mut req_payload = GetRequestPayload::new(file_path, local_file_chunk_size);
 
     let conn = (&mut connecting).await?;
     loop {
@@ -47,7 +46,7 @@ async fn process_request(
             let stage = process_response(local_dir, &file_name, res_payload)?;
             match stage {
                 Stage::Processing(local_file_chunk_size) => {
-                    req_payload = GetRequestPayload::new(file_path.clone(), local_file_chunk_size);
+                    req_payload = GetRequestPayload::new(file_path, local_file_chunk_size);
                 }
                 Stage::Finish => break,
             }
