@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::mem::size_of;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +11,7 @@ use crate::message::{
 };
 use crate::utils::file::FileChunkSize;
 use crate::utils::json::ToJsonString;
+use crate::utils::res::str_err;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PutRequestMeta {
@@ -72,14 +73,14 @@ impl<'a> FromMessagePayloadRef<'a> for PutRequestPayloadRef<'a> {
         // meta size
         let size_of_meta_size = size_of::<usize>();
         if payload.len() < size_of_meta_size {
-            return Err(anyhow!("payload size error"));
+            return str_err("payload size error");
         }
         let meta_size_bytes = &payload[..size_of_meta_size];
         let meta_size = usize::from_le_bytes(meta_size_bytes.try_into().unwrap());
 
         // meta
         if payload.len() < size_of_meta_size + meta_size {
-            return Err(anyhow!("payload size error"));
+            return str_err("payload size error");
         }
         let meta_offset = size_of_meta_size;
         let meta_bytes = &payload[meta_offset..meta_offset + meta_size];

@@ -1,11 +1,13 @@
 use std::mem::size_of;
 use std::vec;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bytes::Bytes;
+use num_enum_derive::{IntoPrimitive, TryFromPrimitive};
 
 use crate::utils::bytes_as_t;
 use crate::utils::json::{FromJson, ToJsonString};
+use crate::utils::res::str_err;
 
 pub mod get;
 pub mod ls;
@@ -20,7 +22,7 @@ pub type MessagePayloadSize = u64;
 pub type MessagePayloadRef<'a> = &'a [u8];
 
 #[repr(u16)]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, TryFromPrimitive, IntoPrimitive)]
 pub enum MessageType {
     LsRequest = 0b00000001,
     LsResponse = 0b00000010,
@@ -40,16 +42,8 @@ impl MessageType {
 
 impl From<&[u8]> for MessageType {
     fn from(bytes: &[u8]) -> Self {
-        match bytes_as_t::<u16>(bytes) {
-            code if code == MessageType::LsRequest.as_u16() => MessageType::LsRequest,
-            code if code == MessageType::LsResponse.as_u16() => MessageType::LsResponse,
-            code if code == MessageType::PutRequest.as_u16() => MessageType::PutRequest,
-            code if code == MessageType::PutResponse.as_u16() => MessageType::PutResponse,
-            code if code == MessageType::GetRequest.as_u16() => MessageType::GetRequest,
-            code if code == MessageType::GetResponse.as_u16() => MessageType::GetResponse,
-            code if code == MessageType::Error.as_u16() => MessageType::Error,
-            _ => MessageType::Invalid,
-        }
+        let raw = bytes_as_t::<u16>(bytes);
+        MessageType::try_from(raw).unwrap_or_else(|_| MessageType::Invalid)
     }
 }
 
@@ -73,28 +67,28 @@ const OFFSET_OF_MESSAGE_PAYLOAD: usize =
 pub fn deconstruct_message(msg: &RecvMessage) -> Result<(MessageType, Option<MessagePayloadRef>)> {
     // header size valid
     if msg.len() < SIZE_OF_HEADER {
-        return Err(anyhow!("message header size invalid"));
+        return str_err("message header size invalid");
     }
 
     // magic valid
     let magic_bytes = &msg[OFFSET_OF_MESSAGE_MAGIC..OFFSET_OF_MESSAGE_TYPE];
     let magic = bytes_as_t::<MessageMagic>(magic_bytes);
     if magic != MESSAGE_MAGIC {
-        return Err(anyhow!("message magic invalid"));
+        return str_err("message magic invalid");
     }
 
     // type valid
     let type_bytes = &msg[OFFSET_OF_MESSAGE_TYPE..OFFSET_OF_MESSAGE_PAYLOAD_SIZE];
     let msg_type = MessageType::from(type_bytes);
     if msg_type == MessageType::Invalid {
-        return Err(anyhow!("message type invalid"));
+        return str_err("message type invalid");
     }
 
     // total size valid
     let payload_size_bytes = &msg[OFFSET_OF_MESSAGE_PAYLOAD_SIZE..OFFSET_OF_MESSAGE_PAYLOAD];
     let payload_size = bytes_as_t::<MessagePayloadSize>(payload_size_bytes);
     if msg.len() != SIZE_OF_HEADER + payload_size as usize {
-        return Err(anyhow!("message size invalid"));
+        return str_err("message size invalid");
     }
 
     let mut payload = None;

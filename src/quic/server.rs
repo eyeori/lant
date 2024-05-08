@@ -1,14 +1,16 @@
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 use anyhow::Result;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use net2::unix::UnixUdpBuilderExt;
 use quinn::TokioRuntime;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 use crate::quic::cert::{LTS_CERT, LTS_KEY};
+use crate::utils::res::ExtResult;
 
 pub async fn start(listen_port: u16, conn_sender: Arc<Sender<quinn::Connection>>) -> Result<()> {
     tokio::spawn(quic_handle_accept(
@@ -20,13 +22,10 @@ pub async fn start(listen_port: u16, conn_sender: Arc<Sender<quinn::Connection>>
 }
 
 fn quic_build_server_config() -> Result<quinn::ServerConfig> {
-    let key = STANDARD.decode(LTS_KEY).unwrap();
-    let cert = STANDARD.decode(LTS_CERT).unwrap();
-    let server_crypto = rustls::ServerConfig::builder()
-        .with_safe_defaults()
-        .with_no_client_auth()
-        .with_single_cert(vec![rustls::Certificate(cert)], rustls::PrivateKey(key))?;
-    Ok(quinn::ServerConfig::with_crypto(Arc::new(server_crypto)))
+    let cert = CertificateDer::from(STANDARD.decode(LTS_CERT).get()?);
+    let key = PrivateKeyDer::try_from(STANDARD.decode(LTS_KEY).get()?).get()?;
+    let config = quinn::ServerConfig::with_single_cert(vec![cert], key)?;
+    Ok(config)
 }
 
 fn quic_start_listen(port: u16) -> Result<quinn::Endpoint> {
@@ -51,17 +50,17 @@ async fn quic_handle_accept(
     conn_sender: Arc<Sender<quinn::Connection>>,
 ) {
     loop {
-        if let Some(connecting) = endpoint.accept().await {
-            tokio::spawn(quic_handle_connecting(connecting, conn_sender.clone()));
+        if let Some(incoming) = endpoint.accept().await {
+            tokio::spawn(quic_handle_incoming(incoming, conn_sender.clone()));
         }
     }
 }
 
-async fn quic_handle_connecting(
-    connecting: quinn::Connecting,
+async fn quic_handle_incoming(
+    incoming: quinn::Incoming,
     conn_sender: Arc<Sender<quinn::Connection>>,
 ) {
-    match connecting.await {
+    match incoming.await {
         Ok(conn) => {
             if let Err(e) = conn_sender.send(conn) {
                 println!("[ERR][Quic] Send new conn to higher level server error, error={e}");

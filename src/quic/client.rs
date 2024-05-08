@@ -2,27 +2,25 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use anyhow::Result;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use rustls::pki_types::CertificateDer;
 
 use crate::quic::cert::{LTS_CERT, SERVER_NAME};
+use crate::utils::res::ExtResult;
 
-pub fn build_client_config() -> Result<rustls::ClientConfig> {
-    let tls_cert = rustls::Certificate(STANDARD.decode(LTS_CERT).unwrap());
+pub fn build_client_config() -> Result<quinn::ClientConfig> {
+    let tls_cert = CertificateDer::from(STANDARD.decode(LTS_CERT).unwrap());
     let mut roots = rustls::RootCertStore::empty();
-    roots.add(&tls_cert)?;
+    roots.add(tls_cert)?;
 
-    let config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
+    let config = quinn::ClientConfig::with_root_certificates(Arc::new(roots)).get()?;
     Ok(config)
 }
 
-pub fn build_endpoint(config: rustls::ClientConfig) -> Result<quinn::Endpoint> {
+pub fn build_endpoint(config: quinn::ClientConfig) -> Result<quinn::Endpoint> {
     let mut endpoint = quinn::Endpoint::client("[::]:0".parse()?)?;
-    endpoint.set_default_client_config(quinn::ClientConfig::new(Arc::new(config)));
-
+    endpoint.set_default_client_config(config);
     Ok(endpoint)
 }
 

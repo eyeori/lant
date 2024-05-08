@@ -3,7 +3,7 @@ use std::mem::size_of;
 use std::path::PathBuf;
 use std::usize;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
@@ -11,6 +11,7 @@ use crate::message::{
     FromMessagePayloadRef, JsonPayload, MessagePayload, MessagePayloadRef, ToMessagePayload,
 };
 use crate::utils::file::FileChunkSize;
+use crate::utils::res::str_err;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetRequestPayload {
@@ -102,7 +103,7 @@ impl<'a> FromMessagePayloadRef<'a> for GetResponsePayloadRef<'a> {
         // meta
         let size_of_meta = size_of::<GetResponseMeta>();
         if payload.len() < size_of_meta {
-            return Err(anyhow!("payload size error"));
+            return str_err("payload size error");
         }
         let meta_bytes = &payload[..size_of_meta];
         let meta = GetResponseMeta::from(meta_bytes);

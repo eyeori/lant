@@ -14,7 +14,7 @@ use crate::message::{
     build_error_message, deconstruct_message, MessageType, RecvMessage, SendMessage,
 };
 use crate::quic::quic_server;
-use crate::utils::res::ExtResult;
+use crate::utils::res::{str_err, ExtResult};
 
 mod get;
 mod ls;
@@ -45,7 +45,7 @@ pub fn get_server_abs_root_dir() -> Result<PathBuf> {
 pub(crate) async fn start(listen_on: u16, root_path: &Path) -> Result<()> {
     // root path check
     if !root_path.is_dir() {
-        return Err(anyhow!("root path is not a dir"));
+        return str_err("root path is not a dir");
     }
 
     println!("Server starting...");

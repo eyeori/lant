@@ -18,14 +18,14 @@ where
 }
 
 pub trait ToJsonString {
-    fn to_json(self) -> String;
+    fn to_json(&self) -> String;
 }
 
 impl<T> ToJsonString for T
 where
     T: Serialize,
 {
-    fn to_json(self) -> String {
+    fn to_json(&self) -> String {
         serde_json::json!(self).to_string()
     }
 }

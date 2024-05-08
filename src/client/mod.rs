@@ -38,7 +38,7 @@ async fn send_and_receive(
     // connect & send request
     let (mut ss, mut rs) = conn.open_bi().await?;
     ss.write_all_chunks(msg.as_mut_slice()).await?;
-    ss.finish().await?;
+    ss.finish()?;
 
     // receive response
     let response = rs.read_to_end(usize::MAX).await?;
