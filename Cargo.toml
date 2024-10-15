@@ -8,21 +8,21 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.83"
-base64 = "0.22.1"
-bytes = "1.6.0"
-chrono = "0.4.38"
-futures = "0.3.30"
-net2 = "0.2.39"
-num_enum = "0.7.2"
-num_enum_derive = "0.7.2"
-once_cell = "1.19.0"
-path-absolutize = "3.1.1"
-quinn = { version = "0.11.0", features = ["ring"] }
-rcgen = "0.13.1"
-rustls = "0.23.5"
-serde = { version = "1.0.201", features = ["derive"] }
-serde_json = "1.0.117"
-structopt = { version = "0.3.26", features = ["paw"] }
-tokio = { version = "1.37.0", features = ["full"] }
-thiserror = "1.0.60"
+anyhow = "1.0"
+base64 = "0.22"
+bytes = "1.7"
+chrono = "0.4"
+futures = "0.3"
+net2 = "0.2"
+num_enum = "0.7"
+num_enum_derive = "0.7"
+once_cell = "1.20"
+path-absolutize = "3.1"
+quinn = { version = "0.11", features = ["ring"] }
+rcgen = "0.13"
+rustls = "0.23"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+structopt = { version = "0.3", features = ["paw"] }
+tokio = { version = "1.40", features = ["full"] }
+thiserror = "1.0"
