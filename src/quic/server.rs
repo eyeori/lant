@@ -1,16 +1,15 @@
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
-use anyhow::Result;
-use base64::Engine;
+use crate::utils::error::Result;
 use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use net2::unix::UnixUdpBuilderExt;
 use quinn::TokioRuntime;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 use crate::quic::cert::{LTS_CERT, LTS_KEY};
-use crate::utils::res::ExtResult;
 
 pub async fn start(listen_port: u16, conn_sender: Arc<Sender<quinn::Connection>>) -> Result<()> {
     tokio::spawn(quic_handle_accept(
@@ -22,8 +21,8 @@ pub async fn start(listen_port: u16, conn_sender: Arc<Sender<quinn::Connection>>
 }
 
 fn quic_build_server_config() -> Result<quinn::ServerConfig> {
-    let cert = CertificateDer::from(STANDARD.decode(LTS_CERT).get()?);
-    let key = PrivateKeyDer::try_from(STANDARD.decode(LTS_KEY).get()?).get()?;
+    let cert = CertificateDer::from(STANDARD.decode(LTS_CERT)?);
+    let key = PrivateKeyDer::try_from(STANDARD.decode(LTS_KEY)?)?;
     let config = quinn::ServerConfig::with_single_cert(vec![cert], key)?;
     Ok(config)
 }

@@ -1,14 +1,11 @@
-use std::fs;
-
-use anyhow::{anyhow, Result};
-
 use crate::message::ls::{LsRequestPayload, LsResponsePayload};
 use crate::message::{
     build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
 };
 use crate::server::get_server_abs_root_dir;
 use crate::utils::dir::{DirItem, DirItemType};
-use crate::utils::res::ExtResult;
+use crate::utils::error::{MsgErr, Result};
+use std::fs;
 
 pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
     // deserialize request payload
@@ -21,11 +18,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     let mut abs_ls_path = abs_root_dir.clone();
     abs_ls_path.push(req_payload.path_on_remote.clone());
     abs_ls_path = abs_ls_path.canonicalize()?;
-    if !abs_ls_path
-        .to_str()
-        .get()?
-        .starts_with(abs_root_dir.to_str().get()?)
-    {
+    if !abs_ls_path.starts_with(&abs_root_dir) {
         abs_ls_path = abs_root_dir;
     }
 
@@ -34,7 +27,10 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         let mut items = Vec::new();
         for entry in fs::read_dir(abs_ls_path)? {
             let entry = entry?;
-            let entry_name = entry.file_name().into_string().get()?;
+            let entry_name = entry
+                .file_name()
+                .into_string()
+                .map_err(|e| MsgErr::new(e.to_str().unwrap_or("")))?;
             let entry_type = DirItemType::from(entry.file_type()?);
             items.push(DirItem::new(entry_name, entry_type));
         }
@@ -45,10 +41,11 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
         let item = DirItem::new(ls_item.to_string(), DirItemType::File);
         LsResponsePayload::new(req_payload.path_on_remote, vec![item])
     } else {
-        return Err(anyhow!(
+        return Err(format!(
             "ls path resource not exists, path={:?}",
             req_payload.path_on_remote
-        ));
+        )
+        .into());
     };
 
     // build payload message

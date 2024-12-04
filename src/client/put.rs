@@ -2,7 +2,6 @@ use std::fs::File;
 use std::os::unix::fs::FileExt;
 use std::path::Path;
 
-use anyhow::Result;
 use bytes::Bytes;
 use chrono::Local;
 use quinn::VarInt;
@@ -10,8 +9,8 @@ use quinn::VarInt;
 use crate::client::{send_and_receive, unwrap_message, Stage};
 use crate::message::put::{PutRequestMeta, PutRequestPayload, PutResponsePayload};
 use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
+use crate::utils::error::{MsgErr, Result};
 use crate::utils::file::{buffer_size, index_offset, FileChunkSize};
-use crate::utils::res::ExtResult;
 
 pub async fn put(connecting: quinn::Connecting, file_path: &Path, remote_dir: &Path) {
     if let Err(e) = process_request(connecting, file_path, remote_dir).await {
@@ -32,7 +31,9 @@ async fn process_request(
     let local_file_len = local_file.metadata()?.len();
     let local_file_chunk_size = FileChunkSize::from(local_file_len as usize);
 
-    let file_name = file_path.file_name().get_or("got file name error")?;
+    let file_name = file_path
+        .file_name()
+        .ok_or(MsgErr::new("got file name error"))?;
     let mut req_meta = PutRequestMeta::new(file_name, remote_dir);
     let mut req_payload = PutRequestPayload::new(req_meta.clone(), None);
 

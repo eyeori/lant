@@ -1,20 +1,19 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use anyhow::Result;
-use base64::Engine;
+use crate::utils::error::Result;
 use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use rustls::pki_types::CertificateDer;
 
 use crate::quic::cert::{LTS_CERT, SERVER_NAME};
-use crate::utils::res::ExtResult;
 
 pub fn build_client_config() -> Result<quinn::ClientConfig> {
     let tls_cert = CertificateDer::from(STANDARD.decode(LTS_CERT).unwrap());
     let mut roots = rustls::RootCertStore::empty();
     roots.add(tls_cert)?;
 
-    let config = quinn::ClientConfig::with_root_certificates(Arc::new(roots)).get()?;
+    let config = quinn::ClientConfig::with_root_certificates(Arc::new(roots))?;
     Ok(config)
 }
 

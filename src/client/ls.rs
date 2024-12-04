@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use anyhow::Result;
 use quinn::VarInt;
 
 use crate::client::{send_and_receive, unwrap_message};
 use crate::message::ls::{LsRequestPayload, LsResponsePayload};
 use crate::message::{FromMessagePayloadRef, MessagePayloadRef, MessageType};
+use crate::utils::error::Result;
 
 pub async fn ls(connecting: quinn::Connecting, path_on_remote: &Path) {
     if let Err(e) = process_request(connecting, path_on_remote).await {

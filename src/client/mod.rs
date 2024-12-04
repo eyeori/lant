@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use crate::utils::error::Result;
 use serde::{Deserialize, Serialize};
 
 pub use get::get;

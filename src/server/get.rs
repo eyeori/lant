@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::os::unix::fs::FileExt;
 
-use anyhow::{anyhow, Result};
 use bytes::Bytes;
 
 use crate::message::get::{GetRequestPayload, GetResponseMeta, GetResponsePayload};
@@ -9,8 +8,8 @@ use crate::message::{
     build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
 };
 use crate::server::get_server_abs_root_dir;
+use crate::utils::error::Result;
 use crate::utils::file::{buffer_size, index_offset, FileChunkSize};
-use crate::utils::res::ExtResult;
 
 pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
     // deserialize request payload
@@ -24,11 +23,7 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
     let mut abs_file_path = abs_root_dir.clone();
     abs_file_path.push(req_payload.remote_file_path.clone());
     abs_file_path = abs_file_path.canonicalize()?;
-    if !abs_file_path
-        .to_str()
-        .get()?
-        .starts_with(abs_root_dir.to_str().get()?)
-    {
+    if !abs_file_path.starts_with(&abs_root_dir) {
         file_path_valid = false;
     }
     if !abs_file_path.exists() || !abs_file_path.is_file() {
@@ -53,16 +48,14 @@ pub async fn request(req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> 
             let _ = file.read_at(&mut buffer, offset)?;
             GetResponsePayload::new(meta, Bytes::from(buffer))
         } else {
-            return Err(anyhow!(
+            return Err(format!(
                 "the file transfer is already completed, path={:?}",
                 req_payload.remote_file_path
-            ));
+            )
+            .into());
         }
     } else {
-        return Err(anyhow!(
-            "file not exists, path={:?}",
-            req_payload.remote_file_path
-        ));
+        return Err(format!("file not exists, path={:?}", req_payload.remote_file_path).into());
     };
 
     // build response message

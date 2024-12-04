@@ -1,12 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::mpsc::{channel, Receiver, TryRecvError};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
-use once_cell::sync::OnceCell;
+use crate::utils::error::{MsgErr, Result};
 use path_absolutize::Absolutize;
 use tokio::try_join;
 
@@ -14,7 +13,6 @@ use crate::message::{
     build_error_message, deconstruct_message, MessageType, RecvMessage, SendMessage,
 };
 use crate::quic::quic_server;
-use crate::utils::res::{str_err, ExtResult};
 
 mod get;
 mod ls;
@@ -32,12 +30,12 @@ impl ServerContext {
     }
 }
 
-static SERVER_CONTEXT: OnceCell<ServerContext> = OnceCell::new();
+static SERVER_CONTEXT: OnceLock<ServerContext> = OnceLock::new();
 
 pub fn get_server_abs_root_dir() -> Result<PathBuf> {
     let server_context = SERVER_CONTEXT
         .get()
-        .get_or("server context not initialized")?;
+        .ok_or(MsgErr::new("server context not initialized"))?;
     let root_dir = &server_context.root_path;
     Ok(root_dir.absolutize()?.to_path_buf())
 }
@@ -45,7 +43,7 @@ pub fn get_server_abs_root_dir() -> Result<PathBuf> {
 pub(crate) async fn start(listen_on: u16, root_path: &Path) -> Result<()> {
     // root path check
     if !root_path.is_dir() {
-        return str_err("root path is not a dir");
+        return MsgErr::res("root path is not a dir");
     }
 
     println!("Server starting...");
@@ -142,11 +140,11 @@ async fn handle_request(mut ss: quinn::SendStream, mut rs: quinn::RecvStream) {
 
 async fn handle_business(msg: RecvMessage) -> Result<SendMessage> {
     let (msg_type, msg_payload) = deconstruct_message(&msg)?;
-    let req_payload = msg_payload.get_or("request body is null")?;
+    let req_payload = msg_payload.ok_or(MsgErr::new("request body is null"))?;
     match msg_type {
         MessageType::LsRequest => ls::request(req_payload).await,
         MessageType::PutRequest => put::request(req_payload).await,
         MessageType::GetRequest => get::request(req_payload).await,
-        msg_type => Err(anyhow!("not supported message type, type={msg_type:?}")),
+        msg_type => MsgErr::res(format!("not supported message type, type={msg_type:?}")),
     }
 }

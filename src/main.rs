@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
 use structopt::StructOpt;
 
 mod client;
@@ -8,6 +7,8 @@ mod message;
 mod quic;
 mod server;
 mod utils;
+
+use crate::utils::error::Result;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "lant", about = "LAN Transfer")]

@@ -1,13 +1,12 @@
 use std::mem::size_of;
 use std::vec;
 
-use anyhow::Result;
+use crate::utils::error::{MsgErr, Result};
 use bytes::Bytes;
 use num_enum_derive::{IntoPrimitive, TryFromPrimitive};
 
 use crate::utils::bytes_as_t;
 use crate::utils::json::{FromJson, ToJsonString};
-use crate::utils::res::str_err;
 
 pub mod get;
 pub mod ls;
@@ -67,28 +66,28 @@ const OFFSET_OF_MESSAGE_PAYLOAD: usize =
 pub fn deconstruct_message(msg: &RecvMessage) -> Result<(MessageType, Option<MessagePayloadRef>)> {
     // header size valid
     if msg.len() < SIZE_OF_HEADER {
-        return str_err("message header size invalid");
+        return MsgErr::res("message header size invalid");
     }
 
     // magic valid
     let magic_bytes = &msg[OFFSET_OF_MESSAGE_MAGIC..OFFSET_OF_MESSAGE_TYPE];
     let magic = bytes_as_t::<MessageMagic>(magic_bytes);
     if magic != MESSAGE_MAGIC {
-        return str_err("message magic invalid");
+        return MsgErr::res("message magic invalid");
     }
 
     // type valid
     let type_bytes = &msg[OFFSET_OF_MESSAGE_TYPE..OFFSET_OF_MESSAGE_PAYLOAD_SIZE];
     let msg_type = MessageType::from(type_bytes);
     if msg_type == MessageType::Invalid {
-        return str_err("message type invalid");
+        return MsgErr::res("message type invalid");
     }
 
     // total size valid
     let payload_size_bytes = &msg[OFFSET_OF_MESSAGE_PAYLOAD_SIZE..OFFSET_OF_MESSAGE_PAYLOAD];
     let payload_size = bytes_as_t::<MessagePayloadSize>(payload_size_bytes);
     if msg.len() != SIZE_OF_HEADER + payload_size as usize {
-        return str_err("message size invalid");
+        return MsgErr::res("message size invalid");
     }
 
     let mut payload = None;
