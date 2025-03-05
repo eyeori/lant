@@ -1,11 +1,15 @@
+use crate::command::get::GetCommandClient;
+use crate::command::ls::LsCommandClient;
+use crate::command::put::PutCommandClient;
+use crate::command::CommandClient;
+use crate::quic::client::Client;
+use crate::quic::server::Server;
 use std::path::PathBuf;
-
 use structopt::StructOpt;
 
-mod client;
+mod command;
 mod message;
 mod quic;
-mod server;
 mod utils;
 
 use crate::utils::error::Result;
@@ -98,36 +102,40 @@ enum ClientSubCommand {
 async fn main() -> Result<()> {
     let cmd = Command::from_args();
 
-    match &cmd {
+    match cmd {
         Command::Server {
             listen_on,
             root_path,
         } => {
-            server::start(*listen_on, root_path).await?;
+            let server = Server::new(listen_on, root_path)?;
+            server.start().await?;
         }
         Command::Client {
             connect_to,
             sub_command,
         } => {
-            let (endpoint, connecting) = client::init(connect_to)?;
+            let client = Client::new(&connect_to)?;
             match sub_command {
                 ClientSubCommand::Ls { path_on_remote } => {
-                    client::ls(connecting, path_on_remote).await
+                    let cmd = LsCommandClient::new(&client, path_on_remote);
+                    cmd.request().await;
                 }
                 ClientSubCommand::Put {
                     file_path,
                     remote_dir,
                 } => {
-                    client::put(connecting, file_path, remote_dir).await;
+                    let cmd = PutCommandClient::new(&client, file_path, remote_dir);
+                    cmd.request().await;
                 }
                 ClientSubCommand::Get {
                     file_path,
                     local_dir,
                 } => {
-                    client::get(connecting, file_path, local_dir).await;
+                    let cmd = GetCommandClient::new(&client, file_path, local_dir);
+                    cmd.request().await;
                 }
-            }
-            endpoint.wait_idle().await;
+            };
+            client.wait().await;
         }
     }
     Ok(())
