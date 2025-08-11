@@ -42,7 +42,7 @@ impl MessageType {
 impl From<&[u8]> for MessageType {
     fn from(bytes: &[u8]) -> Self {
         let raw = bytes_as_t::<u16>(bytes);
-        MessageType::try_from(raw).unwrap_or_else(|_| MessageType::Invalid)
+        MessageType::try_from(raw).unwrap_or(MessageType::Invalid)
     }
 }
 

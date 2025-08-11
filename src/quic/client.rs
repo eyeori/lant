@@ -91,7 +91,7 @@ pub struct QuicClient {
 
 impl QuicClient {
     pub fn new(server_name: String, addr: SocketAddr, lts_cert: &str) -> Result<Self> {
-        let endpoint = Self::build_endpoint(&lts_cert)?;
+        let endpoint = Self::build_endpoint(lts_cert)?;
         Ok(Self {
             server_name,
             addr,

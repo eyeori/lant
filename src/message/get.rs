@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::mem::size_of;
 use std::path::PathBuf;
-use std::usize;
 
 use crate::utils::error::{MsgErr, Result};
 use bytes::Bytes;

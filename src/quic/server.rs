@@ -15,6 +15,7 @@ use quinn::TokioRuntime;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::mpsc::TryRecvError;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
@@ -25,7 +26,7 @@ use tokio::try_join;
 pub struct Server {
     root_path: PathBuf,
     quic_server: QuicServer,
-    conn_receiver: Arc<Receiver<quinn::Connection>>,
+    conn_receiver: Rc<Receiver<quinn::Connection>>,
 }
 
 impl Server {
@@ -37,7 +38,7 @@ impl Server {
 
         // conn channel
         let (conn_sender, conn_receiver) = channel();
-        let conn_receiver = Arc::new(conn_receiver);
+        let conn_receiver = Rc::new(conn_receiver);
 
         let quic_server = QuicServer::new(
             listen_on,
