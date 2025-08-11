@@ -63,7 +63,9 @@ const OFFSET_OF_MESSAGE_PAYLOAD: usize =
 /// │ MAGIC │  MSG TYPE │ PAYLOAD SIZE                      │ PAYLOAD       │
 /// └───────┴───────┴───┴───────┴───┴───┴───┴───┴───┴───┴───┴───────┴──~~~──┘
 /// ```
-pub fn deconstruct_message(msg: &RecvMessage) -> Result<(MessageType, Option<MessagePayloadRef>)> {
+pub fn deconstruct_message(
+    msg: &RecvMessage,
+) -> Result<(MessageType, Option<MessagePayloadRef<'_>>)> {
     // header size valid
     if msg.len() < SIZE_OF_HEADER {
         return MsgErr::res("message header size invalid");
