@@ -1,19 +1,17 @@
-use std::path::PathBuf;
-
-use serde::{Deserialize, Serialize};
-
 use crate::message::JsonPayload;
 use crate::utils::dir::DirItem;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize)]
 pub struct LsRequestPayload {
-    pub path_on_remote: PathBuf,
+    pub remote_path: PathBuf,
 }
 
 impl LsRequestPayload {
-    pub fn new(path_on_remote: impl Into<PathBuf>) -> Self {
+    pub fn new(remote_path: impl Into<PathBuf>) -> Self {
         Self {
-            path_on_remote: path_on_remote.into(),
+            remote_path: remote_path.into(),
         }
     }
 }

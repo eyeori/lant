@@ -1,48 +1,43 @@
-use std::fs::File;
-use std::os::unix::fs::FileExt;
-use std::path::PathBuf;
-
 use crate::command::{CommandClient, CommandServer};
-use crate::message::put::{
-    PutRequestMeta, PutRequestPayload, PutRequestPayloadRef, PutResponsePayload,
-};
-use crate::message::{
-    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
-};
+use crate::message::put::*;
+use crate::message::*;
 use crate::quic::client::{Client, Stage};
-use crate::utils::error::{MsgErr, Result};
 use crate::utils::file::{buffer_size, index_offset, FileChunkSize};
+use anyhow::{anyhow, Result};
 use bytes::Bytes;
 use chrono::Local;
 use quinn::VarInt;
+use std::fs::File;
+use std::os::unix::fs::FileExt;
+use std::path::{Path, PathBuf};
 
 pub struct PutCommandClient<'a> {
     client: &'a Client,
-    file_path: PathBuf,
+    file: PathBuf,
     remote_dir: PathBuf,
 }
 
 impl<'a> PutCommandClient<'a> {
-    pub fn new(client: &'a Client, file_path: PathBuf, remote_dir: PathBuf) -> Self {
+    pub fn new(client: &'a Client, file: &Path, remote_dir: &Path) -> Self {
         Self {
             client,
-            file_path,
-            remote_dir,
+            file: file.to_path_buf(),
+            remote_dir: remote_dir.to_path_buf(),
         }
     }
 
     async fn do_request(&self) -> Result<()> {
         println!(
             "put file: {:?}, to remote dir: {:?}, time:{}",
-            self.file_path,
+            self.file,
             self.remote_dir,
             Local::now().timestamp_millis()
         );
 
         let file_name = self
-            .file_path
+            .file
             .file_name()
-            .ok_or(MsgErr::new("got file name error"))?;
+            .ok_or(anyhow!("got file name error"))?;
         let mut req_meta = PutRequestMeta::new(file_name, &self.remote_dir);
         let mut req_payload = PutRequestPayload::new(req_meta.clone(), None);
 
@@ -77,7 +72,7 @@ impl<'a> PutCommandClient<'a> {
 
         println!(
             "put file: {:?}, to remote dir: {:?} finish, time:{:?}",
-            self.file_path,
+            self.file,
             self.remote_dir,
             Local::now().timestamp_millis()
         );
@@ -89,7 +84,7 @@ impl<'a> PutCommandClient<'a> {
         &self,
         payload: MessagePayloadRef,
     ) -> Result<Stage<(bool, u64, Option<Bytes>)>> {
-        let local_file = File::open(&self.file_path)?;
+        let local_file = File::open(&self.file)?;
         let local_file_len = local_file.metadata()?.len() as usize;
         let local_file_chunk_size = FileChunkSize::from(local_file_len);
 
@@ -135,11 +130,11 @@ impl PutCommandServer {
 }
 
 impl CommandServer for PutCommandServer {
-    async fn handle(&self, req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
+    async fn handle(&self, payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
         // deserialize request payload
-        let req_payload = PutRequestPayloadRef::from_payload(req_payload)?;
+        let payload = PutRequestPayloadRef::from_payload(payload)?;
 
-        if req_payload.meta.is_done {
+        if payload.meta.is_done {
             return Ok(build_message(
                 MessageType::PutResponse,
                 PutResponsePayload::finish(),
@@ -148,12 +143,12 @@ impl CommandServer for PutCommandServer {
 
         // build file path
         let mut remote_file_path = self.0.clone();
-        remote_file_path.push(req_payload.meta.remote_dir.clone());
+        remote_file_path.push(payload.meta.remote_dir.clone());
         remote_file_path = remote_file_path.canonicalize()?;
         if !remote_file_path.starts_with(&self.0) {
             remote_file_path = self.0.clone();
         }
-        remote_file_path.push(req_payload.meta.file_name.clone());
+        remote_file_path.push(payload.meta.file_name.clone());
 
         // open & create file
         let remote_file = File::options()
@@ -162,10 +157,10 @@ impl CommandServer for PutCommandServer {
             .open(remote_file_path)?;
 
         // store data
-        if !req_payload.data.is_empty() {
+        if !payload.data.is_empty() {
             // append data
-            let offset = index_offset(req_payload.meta.curr_trans_trunk_index);
-            remote_file.write_all_at(req_payload.data, offset)?;
+            let offset = index_offset(payload.meta.curr_trans_trunk_index);
+            remote_file.write_all_at(payload.data, offset)?;
         }
 
         // build response payload

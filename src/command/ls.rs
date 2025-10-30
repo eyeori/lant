@@ -1,31 +1,29 @@
 use crate::command::{CommandClient, CommandServer};
 use crate::message::ls::{LsRequestPayload, LsResponsePayload};
-use crate::message::{
-    build_message, FromMessagePayloadRef, MessagePayloadRef, MessageType, SendMessage,
-};
+use crate::message::*;
 use crate::quic::client::Client;
 use crate::utils::dir::{DirItem, DirItemType};
-use crate::utils::error::{MsgErr, Result};
+use anyhow::{anyhow, Result};
 use quinn::VarInt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct LsCommandClient<'a> {
     client: &'a Client,
-    path_on_remote: PathBuf,
+    remote_path: PathBuf,
 }
 
 impl<'a> LsCommandClient<'a> {
-    pub fn new(client: &'a Client, path_on_remote: PathBuf) -> Self {
+    pub fn new(client: &'a Client, remote_path: &Path) -> Self {
         Self {
             client,
-            path_on_remote,
+            remote_path: remote_path.to_path_buf(),
         }
     }
 
-    async fn do_request(&self, client: &Client, path_on_remote: &Path) -> Result<()> {
+    async fn do_request(&self, client: &Client, remote_path: &Path) -> Result<()> {
         // build request payload
-        let req_payload = LsRequestPayload::new(path_on_remote);
+        let req_payload = LsRequestPayload::new(remote_path);
 
         // do request
         let conn = client.connecting()?.await?;
@@ -56,7 +54,7 @@ impl<'a> LsCommandClient<'a> {
 
 impl<'a> CommandClient for LsCommandClient<'a> {
     async fn request(&self) {
-        if let Err(e) = self.do_request(self.client, &self.path_on_remote).await {
+        if let Err(e) = self.do_request(self.client, &self.remote_path).await {
             println!("[ERR][Client] Process request error, error={e}");
         }
     }
@@ -71,13 +69,13 @@ impl LsCommandServer {
 }
 
 impl CommandServer for LsCommandServer {
-    async fn handle(&self, req_payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
+    async fn handle(&self, payload: MessagePayloadRef<'_>) -> Result<SendMessage> {
         // deserialize request payload
-        let req_payload = LsRequestPayload::from_payload(req_payload)?;
+        let payload = LsRequestPayload::from_payload(payload)?;
 
         // check abs_root_dir and ls_dir relation
         let mut abs_ls_path = self.0.clone();
-        abs_ls_path.push(req_payload.path_on_remote.clone());
+        abs_ls_path.push(payload.remote_path.clone());
         abs_ls_path = abs_ls_path.canonicalize()?;
         if !abs_ls_path.starts_with(&self.0) {
             abs_ls_path = self.0.clone();
@@ -91,22 +89,21 @@ impl CommandServer for LsCommandServer {
                 let entry_name = entry
                     .file_name()
                     .into_string()
-                    .map_err(|e| MsgErr::new(e.to_str().unwrap_or("")))?;
+                    .map_err(|e| anyhow!("{e:?}"))?;
                 let entry_type = DirItemType::from(entry.file_type()?);
                 items.push(DirItem::new(entry_name, entry_type));
             }
-            LsResponsePayload::new(req_payload.path_on_remote, items)
+            LsResponsePayload::new(payload.remote_path, items)
         } else if abs_ls_path.is_file() {
             let abs_ls_path = abs_ls_path.to_path_buf();
             let ls_item = abs_ls_path.file_name().unwrap().to_str().unwrap();
             let item = DirItem::new(ls_item.to_string(), DirItemType::File);
-            LsResponsePayload::new(req_payload.path_on_remote, vec![item])
+            LsResponsePayload::new(payload.remote_path, vec![item])
         } else {
-            return Err(format!(
+            return Err(anyhow!(
                 "ls path resource not exists, path={:?}",
-                req_payload.path_on_remote
-            )
-            .into());
+                payload.remote_path
+            ));
         };
 
         // build payload message

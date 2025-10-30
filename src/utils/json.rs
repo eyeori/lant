@@ -1,6 +1,5 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-
-use crate::utils::error::Result;
 
 pub trait FromJson<'a>
 where

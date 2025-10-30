@@ -1,5 +1,5 @@
 use crate::message::{MessagePayloadRef, SendMessage};
-use crate::utils::error::Result;
+use anyhow::Result;
 
 pub mod get;
 pub mod ls;
@@ -10,5 +10,5 @@ pub trait CommandClient {
 }
 
 pub trait CommandServer {
-    async fn handle(&self, req_payload: MessagePayloadRef<'_>) -> Result<SendMessage>;
+    async fn handle(&self, payload: MessagePayloadRef<'_>) -> Result<SendMessage>;
 }

@@ -2,11 +2,9 @@ use crate::command::get::GetCommandServer;
 use crate::command::ls::LsCommandServer;
 use crate::command::put::PutCommandServer;
 use crate::command::CommandServer;
-use crate::message::{
-    build_error_message, deconstruct_message, MessageType, RecvMessage, SendMessage,
-};
+use crate::message::*;
 use crate::quic::cert::{LTS_CERT, LTS_KEY};
-use crate::utils::error::{MsgErr, Result};
+use anyhow::{anyhow, Result};
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use net2::unix::UnixUdpBuilderExt;
@@ -14,7 +12,7 @@ use path_absolutize::Absolutize;
 use quinn::TokioRuntime;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::mpsc::TryRecvError;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -24,38 +22,34 @@ use tokio::time::sleep;
 use tokio::try_join;
 
 pub struct Server {
-    root_path: PathBuf,
+    root_dir: PathBuf,
     quic_server: QuicServer,
     conn_receiver: Rc<Receiver<quinn::Connection>>,
 }
 
 impl Server {
-    pub fn new(listen_on: u16, root_path: PathBuf) -> Result<Self> {
+    pub fn new(port: u16, root_dir: &Path) -> Result<Self> {
         // root path check
-        if !root_path.is_dir() {
-            return MsgErr::res("root path is not a dir");
+        if !root_dir.is_dir() {
+            return Err(anyhow!("root path is not a dir"));
         }
 
         // conn channel
         let (conn_sender, conn_receiver) = channel();
         let conn_receiver = Rc::new(conn_receiver);
 
-        let quic_server = QuicServer::new(
-            listen_on,
-            LTS_CERT.to_string(),
-            LTS_KEY.to_string(),
-            conn_sender,
-        );
+        let quic_server =
+            QuicServer::new(port, LTS_CERT.to_string(), LTS_KEY.to_string(), conn_sender);
 
         Ok(Self {
-            root_path,
+            root_dir: root_dir.to_path_buf(),
             quic_server,
             conn_receiver,
         })
     }
 
     pub fn get_server_abs_root_dir(&self) -> Result<PathBuf> {
-        let root_dir = &self.root_path;
+        let root_dir = &self.root_dir;
         Ok(root_dir.absolutize()?.to_path_buf())
     }
 
@@ -82,7 +76,7 @@ impl Server {
                         "[Server] Receive a connection, from {:?}",
                         conn.remote_address()
                     );
-                    tokio::spawn(Self::handle_requests(abs_root_path.clone(), conn));
+                    tokio::spawn(handle_requests(abs_root_path.clone(), conn));
                 }
                 Err(e) => match e {
                     TryRecvError::Empty => {
@@ -98,81 +92,10 @@ impl Server {
         }
         Ok(())
     }
-
-    async fn handle_requests(abs_root_dir: PathBuf, conn: quinn::Connection) {
-        loop {
-            match conn.accept_bi().await {
-                Ok((ss, rs)) => {
-                    tokio::spawn(Self::handle_request(abs_root_dir.clone(), ss, rs));
-                }
-                e @ Err(
-                    quinn::ConnectionError::ConnectionClosed(_)
-                    | quinn::ConnectionError::ApplicationClosed(_)
-                    | quinn::ConnectionError::Reset
-                    | quinn::ConnectionError::LocallyClosed,
-                ) => {
-                    println!(
-                        "[Server] Connection closed, connection={:?}, reason={:?}",
-                        conn.remote_address(),
-                        e.unwrap_err()
-                    );
-                    break;
-                }
-                Err(e) => {
-                    println!(
-                        "[ERR][Server] No more bi streams on connection {:?}, error={e}",
-                        conn.remote_address()
-                    );
-                    break;
-                }
-            }
-        }
-    }
-
-    async fn handle_request(
-        abs_root_dir: PathBuf,
-        mut ss: quinn::SendStream,
-        mut rs: quinn::RecvStream,
-    ) {
-        // receive request data
-        if let Ok(request) = rs.read_to_end(usize::MAX).await {
-            // do business and build response
-            let res_msg = Self::handle_business(abs_root_dir.clone(), request.into()).await;
-            let mut response = res_msg.unwrap_or_else(|e| build_error_message(e.to_string()));
-
-            // send response back
-            if let Err(e) = ss.write_all_chunks(response.as_mut_slice()).await {
-                println!("[ERR][Server] Send back message error, error={e}");
-            }
-        }
-    }
-
-    async fn handle_business(abs_root_dir: PathBuf, msg: RecvMessage) -> Result<SendMessage> {
-        let (msg_type, msg_payload) = deconstruct_message(&msg)?;
-        let req_payload = msg_payload.ok_or(MsgErr::new("request body is null"))?;
-        match msg_type {
-            MessageType::LsRequest => {
-                LsCommandServer::new(abs_root_dir.clone())
-                    .handle(req_payload)
-                    .await
-            }
-            MessageType::PutRequest => {
-                PutCommandServer::new(abs_root_dir.clone())
-                    .handle(req_payload)
-                    .await
-            }
-            MessageType::GetRequest => {
-                GetCommandServer::new(abs_root_dir.clone())
-                    .handle(req_payload)
-                    .await
-            }
-            msg_type => MsgErr::res(format!("not supported message type, type={msg_type:?}")),
-        }
-    }
 }
 
 pub struct QuicServer {
-    listen_port: u16,
+    port: u16,
     lts_cert: String,
     lts_key: String,
     conn_sender: Arc<Sender<quinn::Connection>>,
@@ -180,13 +103,13 @@ pub struct QuicServer {
 
 impl QuicServer {
     pub fn new(
-        listen_port: u16,
+        port: u16,
         lts_cert: String,
         lts_key: String,
         conn_sender: Sender<quinn::Connection>,
     ) -> Self {
-        QuicServer {
-            listen_port,
+        Self {
+            port,
             lts_cert,
             lts_key,
             conn_sender: Arc::new(conn_sender),
@@ -196,19 +119,20 @@ impl QuicServer {
     pub async fn start(&self) -> Result<()> {
         let config = self.build_config()?;
         let endpoint = self.listen(config)?;
-        tokio::spawn(Self::handle_accept(endpoint, self.conn_sender.clone())).await?;
+        tokio::spawn(handle_accept(endpoint, self.conn_sender.clone())).await?;
         Ok(())
     }
 
     fn build_config(&self) -> Result<quinn::ServerConfig> {
         let cert = CertificateDer::from(STANDARD.decode(&self.lts_cert)?);
-        let key = PrivateKeyDer::try_from(STANDARD.decode(&self.lts_key)?)?;
+        let key =
+            PrivateKeyDer::try_from(STANDARD.decode(&self.lts_key)?).map_err(|e| anyhow!(e))?;
         let config = quinn::ServerConfig::with_single_cert(vec![cert], key)?;
         Ok(config)
     }
 
     fn listen(&self, config: quinn::ServerConfig) -> Result<quinn::Endpoint> {
-        let addr = SocketAddr::from((IpAddr::from(Ipv6Addr::UNSPECIFIED), self.listen_port));
+        let addr = SocketAddr::from((IpAddr::from(Ipv6Addr::UNSPECIFIED), self.port));
         let socket = net2::UdpBuilder::new_v6()?
             .reuse_address(true)?
             .reuse_port(true)?
@@ -222,28 +146,96 @@ impl QuicServer {
         println!("listen on {}", addr);
         Ok(endpoint)
     }
+}
 
-    async fn handle_accept(endpoint: quinn::Endpoint, conn_sender: Arc<Sender<quinn::Connection>>) {
-        loop {
-            if let Some(incoming) = endpoint.accept().await {
-                tokio::spawn(Self::handle_incoming(incoming, conn_sender.clone()));
+async fn handle_accept(endpoint: quinn::Endpoint, conn_sender: Arc<Sender<quinn::Connection>>) {
+    loop {
+        if let Some(incoming) = endpoint.accept().await {
+            tokio::spawn(handle_incoming(incoming, conn_sender.clone()));
+        }
+    }
+}
+
+async fn handle_incoming(incoming: quinn::Incoming, conn_sender: Arc<Sender<quinn::Connection>>) {
+    match incoming.await {
+        Ok(conn) => {
+            if let Err(e) = conn_sender.send(conn) {
+                println!("[ERR][Quic] Send new conn to higher level server error, error={e}");
+            }
+        }
+        Err(e) => {
+            println!("[ERR][Quic] Connection error, error={e}");
+        }
+    }
+}
+
+async fn handle_requests(abs_root_dir: PathBuf, conn: quinn::Connection) {
+    loop {
+        match conn.accept_bi().await {
+            Ok((ss, rs)) => {
+                tokio::spawn(handle_request(abs_root_dir.clone(), ss, rs));
+            }
+            e @ Err(
+                quinn::ConnectionError::ConnectionClosed(_)
+                | quinn::ConnectionError::ApplicationClosed(_)
+                | quinn::ConnectionError::Reset
+                | quinn::ConnectionError::LocallyClosed,
+            ) => {
+                println!(
+                    "[Server] Connection closed, connection={:?}, reason={:?}",
+                    conn.remote_address(),
+                    e.unwrap_err()
+                );
+                break;
+            }
+            Err(e) => {
+                println!(
+                    "[ERR][Server] No more bi streams on connection {:?}, error={e}",
+                    conn.remote_address()
+                );
+                break;
             }
         }
     }
+}
 
-    async fn handle_incoming(
-        incoming: quinn::Incoming,
-        conn_sender: Arc<Sender<quinn::Connection>>,
-    ) {
-        match incoming.await {
-            Ok(conn) => {
-                if let Err(e) = conn_sender.send(conn) {
-                    println!("[ERR][Quic] Send new conn to higher level server error, error={e}");
-                }
-            }
-            Err(e) => {
-                println!("[ERR][Quic] Connection error, error={e}");
-            }
+async fn handle_request(
+    abs_root_dir: PathBuf,
+    mut ss: quinn::SendStream,
+    mut rs: quinn::RecvStream,
+) {
+    // receive request data
+    if let Ok(request) = rs.read_to_end(usize::MAX).await {
+        // do business and build response
+        let res_msg = handle_business(abs_root_dir.clone(), request.into()).await;
+        let mut response = res_msg.unwrap_or_else(|e| build_error_message(e.to_string()));
+
+        // send response back
+        if let Err(e) = ss.write_all_chunks(response.as_mut_slice()).await {
+            println!("[ERR][Server] Send back message error, error={e}");
         }
+    }
+}
+
+async fn handle_business(abs_root_dir: PathBuf, msg: RecvMessage) -> Result<SendMessage> {
+    let (msg_type, msg_payload) = deconstruct_message(&msg)?;
+    let req_payload = msg_payload.ok_or(anyhow!("request body is null"))?;
+    match msg_type {
+        MessageType::LsRequest => {
+            LsCommandServer::new(abs_root_dir.clone())
+                .handle(req_payload)
+                .await
+        }
+        MessageType::PutRequest => {
+            PutCommandServer::new(abs_root_dir.clone())
+                .handle(req_payload)
+                .await
+        }
+        MessageType::GetRequest => {
+            GetCommandServer::new(abs_root_dir.clone())
+                .handle(req_payload)
+                .await
+        }
+        msg_type => Err(anyhow!("not supported message type, type={msg_type:?}")),
     }
 }

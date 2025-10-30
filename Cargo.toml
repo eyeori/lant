@@ -7,18 +7,23 @@ license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[profile]
+release = { lto = "fat" }
+
 [dependencies]
-base64 = "0.22"
-bytes = "1.10"
-chrono = "0.4"
-net2 = "0.2"
-num_enum = "0.7"
-num_enum_derive = "0.7"
-path-absolutize = "3.1"
-quinn = { version = "0.11", features = ["ring"] }
-rustls = "0.23"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-structopt = { version = "0.3", features = ["paw"] }
-tokio = { version = "1.47", features = ["full"] }
+anyhow = "1.0.100"
+base64 = "0.22.1"
+bytes = "1.10.1"
+chrono = "0.4.42"
+clap = { version = "4.5.51", features = ["derive"] }
+net2 = "0.2.39"
+num_enum = "0.7.5"
+num_enum_derive = "0.7.5"
+path-absolutize = "3.1.1"
+quinn = { version = "0.11.9", features = ["ring"] }
+rustls = "0.23.34"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "2.0.17"
+tokio = { version = "1.48.0", features = ["full"] }
 

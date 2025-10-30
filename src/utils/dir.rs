@@ -1,8 +1,6 @@
-use std::fs::FileType;
-
-use serde::{Deserialize, Serialize};
-
 use crate::utils::dir::DirItemType::{Dir, File};
+use serde::{Deserialize, Serialize};
+use std::fs::FileType;
 
 #[derive(Serialize, Deserialize, PartialEq)]
 pub enum DirItemType {
@@ -12,11 +10,7 @@ pub enum DirItemType {
 
 impl From<FileType> for DirItemType {
     fn from(item_type: FileType) -> Self {
-        if item_type.is_file() {
-            File
-        } else {
-            Dir
-        }
+        if item_type.is_file() { File } else { Dir }
     }
 }
 
