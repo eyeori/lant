@@ -8,16 +8,11 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub enum Stage<T> {
     Processing(T),
+    #[default]
     Finish,
-}
-
-impl<T> Default for Stage<T> {
-    fn default() -> Self {
-        Self::Finish
-    }
 }
 
 pub struct Client {
