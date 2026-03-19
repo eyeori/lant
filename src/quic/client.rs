@@ -107,7 +107,7 @@ impl QuicClient {
 
     fn build_client_config(lts_cert: &str) -> Result<quinn::ClientConfig> {
         let tls_cert = CertificateDer::from(STANDARD.decode(lts_cert)?);
-        let mut roots = rustls::RootCertStore::empty();
+        let mut roots = quinn::rustls::RootCertStore::empty();
         roots.add(tls_cert)?;
 
         let config = quinn::ClientConfig::with_root_certificates(Arc::new(roots))?;
